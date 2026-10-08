@@ -1,10 +1,11 @@
 """Batching by budget rather than by count.
 
 A fixed batch size is sized for the worst chunk in the corpus or it is wrong.
-Thirty-two chunks of 40 tokens and thirty-two chunks of 512 tokens are an order
-of magnitude apart in activation memory, and the second one is what decides
-whether the job survives. So a batch closes when either cap is reached:
-max_items, or max_tokens summed over the batch.
+Thirty-two chunks of 40 tokens is 1,280 tokens through the model; thirty-two of
+512 is 16,384, which is 12.8 times the work for the same batch count. The
+second number is what decides whether the job survives, and a count-based cap
+cannot see it. So a batch closes when either cap is reached: max_items, or
+max_tokens summed over the batch.
 """
 
 from __future__ import annotations
