@@ -4,10 +4,13 @@ from pathlib import Path
 
 import pytest
 
+from embedpipe.batching import CharCounter
 from embedpipe.corpus import scan
+from embedpipe.embedder import HashEmbedder
 from embedpipe.manifest import Manifest
 from embedpipe.payload import payload_signature
 from embedpipe.plan import build_plan
+from embedpipe.store import MemoryStore
 
 HASH_MODEL = "hash-not-a-model@v1/d8"
 
@@ -36,6 +39,21 @@ def corpus(tmp_path: Path) -> Path:
 @pytest.fixture
 def manifest_path(tmp_path: Path) -> Path:
     return tmp_path / "state" / "manifest.json"
+
+
+@pytest.fixture
+def embedder() -> HashEmbedder:
+    return HashEmbedder(dim=8)
+
+
+@pytest.fixture
+def store() -> MemoryStore:
+    return MemoryStore()
+
+
+@pytest.fixture
+def counter() -> CharCounter:
+    return CharCounter()
 
 
 def plan_for(
