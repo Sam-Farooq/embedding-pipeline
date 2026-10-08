@@ -105,6 +105,38 @@ def check_vector_space(manifest: Manifest, embedder: Embedder, *, recreate: bool
         )
 
 
+def absent_points(plan: Plan, store: VectorStore) -> dict[str, list[str]]:
+    """Points a payload-only pass would write that the store does not hold.
+
+    Keyed by doc_id, because a point id is a uuid5 over "<doc_id>#<index>" and
+    tells an operator nothing on its own.
+
+    Qdrant's set_payload against an id that is not in the collection succeeds and
+    changes nothing. So a backfill pointed at the wrong collection, or run after
+    the collection was dropped, writes nothing and still reports a count.
+
+    The manifest cannot catch this. The plan is derived from the manifest, and
+    the manifest is the thing claiming the document is indexed, so it agrees with
+    itself. Only the store can disagree.
+
+    Costs one scroll of the collection's ids, which is what verify already pays,
+    and nothing at all when there is no payload work.
+    """
+    if not plan.payload_only:
+        return {}
+    present = store.ids()
+    absent: dict[str, list[str]] = {}
+    for item in plan.payload_only:
+        missing = [
+            pid
+            for index in range(len(item.chunks))
+            if (pid := point_id(item.doc_id, index)) not in present
+        ]
+        if missing:
+            absent[item.doc_id] = missing
+    return absent
+
+
 def execute(
     plan: Plan,
     *,
