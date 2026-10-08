@@ -1,0 +1,16 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11", cache: pip}
+      # Not ".[hf]". Torch is about 2 GB and the change detection, batching and
+      # manifest code is what regresses, none of which needs a model.
+      - run: pip install -e ".[dev]"
+      - run: ruff check embedpipe tests
+      - run: pytest -q
