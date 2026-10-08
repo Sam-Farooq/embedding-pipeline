@@ -150,10 +150,10 @@ work. `--commit-every 10` is the other end of that.
 ## Batching against memory, not against a number
 
 A fixed batch size is sized for the worst chunk in the corpus or it is wrong.
-Thirty-two chunks of 40 tokens and thirty-two of 512 are an order of magnitude
-apart in activation memory, and it is the second that decides whether the job
-survives. A batch therefore closes when either cap is reached: 32 items or
-8,192 tokens.
+Thirty-two chunks of 40 tokens and thirty-two of 512 are the same item count
+and nearly thirteen times the tokens, and it is the token count that decides
+whether the job survives, because that is what activation memory follows. A
+batch therefore closes when either cap is reached: 32 items or 8,192 tokens.
 
 Token counts come from `CharCounter` by default, which is length over four. That
 rule of thumb over-counts code and under-counts agglutinative languages, and
