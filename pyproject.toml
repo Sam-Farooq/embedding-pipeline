@@ -4,7 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "embedding-pipeline"
-version = "0.4.0"
+# Pre-1.0 while the manifest schema is still moving: it is on its second
+# version already and nothing here promises the CLI flags are stable.
+version = "0.8.2"
 description = "Hash a corpus, embed only what changed, keep a Qdrant collection in step"
 requires-python = ">=3.11"
 dependencies = [

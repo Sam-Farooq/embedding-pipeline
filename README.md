@@ -221,7 +221,7 @@ collection does not cost more than building it.
 ## Tests
 
 ```bash
-pytest -q        # 90 tests, no network, no Qdrant, no model
+pytest -q        # 91 tests, no network, no Qdrant, no model
 ```
 
 The embedder and the store both sit behind protocols with working fakes, so

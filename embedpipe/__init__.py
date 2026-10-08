@@ -1,6 +1,6 @@
 """Incremental embedding pipeline: scan, hash, embed the delta, upsert, prune."""
 
-__version__ = "0.4.0"
+__version__ = "0.8.2"
 
 
 class EmbedPipeError(Exception):
