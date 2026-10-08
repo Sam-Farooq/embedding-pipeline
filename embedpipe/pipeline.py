@@ -12,7 +12,8 @@ The ordering here is the part that survives a crash:
    been upserted. A batch that dies halfway leaves that document absent from the
    manifest, so the next run re-embeds it from chunk zero. Point ids are
    derived, not random, so those re-upserts overwrite rather than duplicate.
-4. Payload-only updates last, since they touch no vectors.
+4. Delete a document's orphan chunks after its new chunks have landed.
+5. Payload-only updates last, since they touch no vectors.
 """
 
 from __future__ import annotations
@@ -250,6 +251,9 @@ def _finish(
     report: RunReport,
     stamp: str,
 ) -> None:
+    if item.orphan_point_ids:
+        store.delete(item.orphan_point_ids)
+        report.points_deleted += len(item.orphan_point_ids)
     manifest.put(
         item.doc_id,
         path=str(item.doc.path),

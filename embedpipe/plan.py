@@ -14,6 +14,7 @@ from enum import StrEnum
 
 from .chunking import DEFAULT_MAX_CHARS, DEFAULT_OVERLAP, split
 from .corpus import SourceDoc
+from .ids import point_id
 from .manifest import Manifest
 
 
@@ -34,6 +35,7 @@ class PlanItem:
     doc: SourceDoc
     action: Action
     chunks: list[str]
+    orphan_point_ids: list[str] = field(default_factory=list)
 
     @property
     def doc_id(self) -> str:
@@ -55,6 +57,10 @@ class Plan:
     def pending_chunks(self) -> int:
         return sum(len(item.chunks) for item in self.embed)
 
+    @property
+    def orphan_point_ids(self) -> list[str]:
+        return [pid for item in self.embed for pid in item.orphan_point_ids]
+
     def is_clean(self) -> bool:
         return not (self.embed or self.payload_only or self.removed)
 
@@ -65,7 +71,7 @@ class Plan:
             "payload_only_docs": len(self.payload_only),
             "unchanged_docs": len(self.unchanged),
             "removed_docs": len(self.removed),
-            "delete_points": len(self.removed_point_ids),
+            "delete_points": len(self.removed_point_ids) + len(self.orphan_point_ids),
         }
 
 
@@ -107,7 +113,15 @@ def build_plan(
             plan.payload_only.append(PlanItem(doc=doc, action=action, chunks=chunks))
             continue
 
-        plan.embed.append(PlanItem(doc=doc, action=action, chunks=chunks))
+        was = record.chunk_count if record else 0
+        plan.embed.append(
+            PlanItem(
+                doc=doc,
+                action=action,
+                chunks=chunks,
+                orphan_point_ids=_orphans(doc.doc_id, was, len(chunks)),
+            )
+        )
 
     for doc_id in sorted(set(manifest.documents) - seen):
         plan.actions[doc_id] = Action.REMOVED
@@ -115,3 +129,14 @@ def build_plan(
         plan.removed_point_ids.extend(manifest.point_ids_for(doc_id))
 
     return plan
+
+
+def _orphans(doc_id: str, old_count: int, new_count: int) -> list[str]:
+    """Point ids the old version of a document owned and the new one does not.
+
+    A document that shrinks from nine chunks to four leaves five points behind.
+    They still match queries and they still carry the old text, so a search
+    returns content that is no longer in the corpus. Nothing else in the system
+    notices, because the collection count still looks plausible.
+    """
+    return [point_id(doc_id, i) for i in range(new_count, old_count)]

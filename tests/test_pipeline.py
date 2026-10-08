@@ -120,6 +120,23 @@ def test_only_the_edited_document_is_re_embedded(corpus, manifest_path, store, c
     assert store.points[point_id("a.md", 0)].payload["text"] == "alpha rewritten entirely"
 
 
+def test_a_shrinking_document_leaves_no_stale_vectors(tmp_path, manifest_path, store, counter):
+    corpus = tmp_path / "corpus"
+    write(corpus, "big.md", "\n\n".join(paragraph(f"p{i}", 180) for i in range(6)))
+    run(corpus, manifest_path, store, HashEmbedder(dim=8), counter, max_chars=200, overlap=0)
+    assert store.count() == 6
+    stale = [point_id("big.md", i) for i in range(1, 6)]
+
+    write(corpus, "big.md", paragraph("only", 50))
+    report = run(
+        corpus, manifest_path, store, HashEmbedder(dim=8), counter, max_chars=200, overlap=0
+    )
+    assert report.points_deleted == 5
+    assert store.count() == 1
+    assert not set(stale) & store.ids()
+    assert Manifest.load(manifest_path, "corpus").documents["big.md"].chunk_count == 1
+
+
 def test_a_deleted_document_takes_its_vectors_with_it(corpus, manifest_path, store, counter):
     run(corpus, manifest_path, store, HashEmbedder(dim=8), counter)
     doomed = set(Manifest.load(manifest_path, "corpus").point_ids_for("a.md"))

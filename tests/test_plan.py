@@ -6,7 +6,7 @@ from embedpipe.manifest import Manifest
 from embedpipe.payload import payload_signature
 from embedpipe.plan import Action, build_plan
 
-from .conftest import HASH_MODEL, plan_for, write
+from .conftest import HASH_MODEL, paragraph, plan_for, write
 
 OTHER_MODEL = "BAAI/bge-small-en-v1.5@unpinned/d384"
 
@@ -96,6 +96,40 @@ def test_a_deleted_file_hands_back_its_point_ids(corpus):
     assert plan.removed == ["a.md"]
     assert plan.removed_point_ids == [point_id("a.md", 0), point_id("a.md", 1)]
     assert plan.counts()["delete_points"] == 2
+
+
+def test_a_shrinking_document_reports_its_orphan_chunks(corpus):
+    manifest = Manifest.empty("corpus")
+    write(corpus, "a.md", "short now")
+    manifest.put(
+        "a.md",
+        path=str(corpus / "a.md"),
+        content_hash="stale000",
+        model=HASH_MODEL,
+        payload_signature=payload_signature({}),
+        chunk_count=5,
+    )
+    plan = build_plan(
+        scan(corpus), manifest, model=HASH_MODEL, payload_signature=payload_signature({})
+    )
+    item = next(i for i in plan.embed if i.doc_id == "a.md")
+    assert len(item.chunks) == 1
+    assert item.orphan_point_ids == [point_id("a.md", i) for i in range(1, 5)]
+
+
+def test_a_growing_document_has_no_orphans(corpus):
+    manifest = seeded(corpus)
+    write(corpus, "a.md", "\n\n".join(paragraph(f"p{i}", 400) for i in range(9)))
+    plan = plan_for(corpus, manifest, max_chars=500, overlap=50)
+    item = next(i for i in plan.embed if i.doc_id == "a.md")
+    assert len(item.chunks) > 1
+    assert item.orphan_point_ids == []
+    assert plan.orphan_point_ids == []
+
+
+def test_a_new_document_has_no_orphans(corpus):
+    plan = plan_for(corpus, Manifest.empty("corpus"))
+    assert plan.orphan_point_ids == []
 
 
 def test_the_glob_decides_what_counts_as_the_corpus(corpus, tmp_path):
