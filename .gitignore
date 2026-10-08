@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+.DS_Store
+
+# pipeline state and local sinks
+.embedpipe/
+*.manifest.json
+points.jsonl
+qdrant_storage/
+reports/*.csv

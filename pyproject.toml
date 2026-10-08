@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "embedding-pipeline"
+version = "0.4.0"
+description = "Hash a corpus, embed only what changed, keep a Qdrant collection in step"
+requires-python = ">=3.11"
+dependencies = [
+    "qdrant-client>=1.11.0",
+    "pandas>=2.2.0",
+    "numpy>=1.26.0",
+    "pydantic>=2.8.0",
+]
+
+[project.optional-dependencies]
+# Torch is ~2 GB and nothing in plan, report or verify needs it.
+hf = ["sentence-transformers>=3.0.0", "transformers>=4.44.0"]
+dev = ["pytest==9.1.1", "ruff==0.16.10"]
+
+[project.scripts]
+embedpipe = "embedpipe.cli:main"
+
+[tool.setuptools]
+packages = ["embedpipe"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
