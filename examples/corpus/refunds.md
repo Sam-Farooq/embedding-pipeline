@@ -1,5 +1,7 @@
 # Refunds
 
+*Invented sample text for the quickstart corpus, not a real refund policy.*
+
 A refund is issued against the original payment method. Where that method has
 expired, the balance is held as account credit and the customer is told once by
 email and once in the console.
@@ -18,7 +20,7 @@ A refund issued on the same calendar day as the original charge is usually
 handled as a reversal by the issuer rather than as a refund. The customer sees
 the charge disappear instead of a second line item, the funds return faster,
 and the console still shows it as a refund because that is what was requested.
-Support gets a ticket about the missing line item roughly once a week.
+The missing line item is a common support question.
 
 ## What cannot be refunded
 
@@ -32,9 +34,8 @@ original authorisation has aged out.
 
 Currency conversion is not reversed. A charge taken in EUR and settled in GBP
 is refunded at the rate on the day of the refund, so the customer can receive
-slightly more or slightly less than they paid. The difference is ours, not
-theirs, and it is the reason the finance team reconciles refunds separately
-from charges.
+slightly more or slightly less than they paid. The difference falls on the
+merchant, which is why refunds are reconciled separately from charges.
 
 ## Credit notes
 

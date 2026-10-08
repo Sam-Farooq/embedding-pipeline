@@ -12,6 +12,9 @@ No model download, no Qdrant, no network. `--embedder hash` produces
 deterministic vectors with no meaning in them, and `--store jsonl` writes
 points to a local file, so the mechanism can be watched end to end.
 
+The three documents under `examples/corpus` are invented sample text, written
+for this repo so that the counts below come out the same on any machine.
+
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
@@ -53,12 +56,13 @@ re-chunked and re-embedded whole, which is the first tradeoff below.
 
 ## What the manifest records, and why
 
-`.embedpipe/manifest.json`, one record per document:
+`.embedpipe/manifest.json` after the first of those two runs, one record per
+document:
 
 ```json
 "refunds.md": {
   "chunk_count": 2,
-  "content_hash": "c808108d8695a1be",
+  "content_hash": "73fd94eb78444358",
   "embedded_at": "2026-10-08T12:17:34+00:00",
   "model": "hash-not-a-model@v1/d384",
   "path": "/tmp/corpus/refunds.md",

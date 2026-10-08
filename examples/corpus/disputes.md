@@ -1,5 +1,7 @@
 # Disputes
 
+*Invented sample text for the quickstart corpus, not a real dispute policy.*
+
 A dispute arrives from the card network with a reason code and a deadline. The
 deadline is set by the network and is not negotiable, so an unanswered dispute
 is a lost dispute.

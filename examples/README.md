@@ -1,7 +1,10 @@
 # examples/corpus
 
-Three documents, one of them in a subdirectory, written so the quickstart in
-the top-level README produces the same counts every time.
+Three invented documents, one of them in a subdirectory. None of this text is
+real policy and none of it came from a live system: it was written for this
+repo so the quickstart in the top-level README produces the same counts every
+time. Each file repeats that under its own heading, because a disclaimer in a
+README nobody opens is not a disclaimer.
 
 `payouts/schedule.md` is there on purpose: the doc_id is the path relative to
 the corpus root, `payouts/schedule.md`, so a file moved between directories is

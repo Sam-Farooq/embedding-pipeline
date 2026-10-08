@@ -1,5 +1,7 @@
 # Payout schedule
 
+*Invented sample text for the quickstart corpus, not a real payout schedule.*
+
 Payouts run daily at 02:00 UTC and cover everything settled before midnight.
 An account in review is skipped rather than delayed, so the next run covers two
 days.
