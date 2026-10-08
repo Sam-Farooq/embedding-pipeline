@@ -156,8 +156,13 @@ class QdrantStore:
     this adapter builds are testable without a server.
     """
 
-    def __init__(self, collection: str = DEFAULT_COLLECTION, url: str = DEFAULT_QDRANT_URL,
-                 client: Any | None = None, timeout: int = 30) -> None:
+    def __init__(
+        self,
+        collection: str = DEFAULT_COLLECTION,
+        url: str = DEFAULT_QDRANT_URL,
+        client: Any | None = None,
+        timeout: int = 30,
+    ) -> None:
         self.collection = collection
         self._timeout = timeout
         self._url = url
@@ -194,8 +199,7 @@ class QdrantStore:
             # of what has been embedded, and it has to be the pessimistic one.
             wait=True,
             points=[
-                PointStruct(id=p.id, vector=list(p.vector), payload=dict(p.payload))
-                for p in points
+                PointStruct(id=p.id, vector=list(p.vector), payload=dict(p.payload)) for p in points
             ],
         )
 

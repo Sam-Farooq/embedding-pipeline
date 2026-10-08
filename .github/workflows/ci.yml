@@ -13,4 +13,5 @@ jobs:
       # manifest code is what regresses, none of which needs a model.
       - run: pip install -e ".[dev]"
       - run: ruff check embedpipe tests
+      - run: ruff format --check embedpipe tests
       - run: pytest -q

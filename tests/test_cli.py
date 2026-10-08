@@ -47,14 +47,24 @@ class Cmd:
 
     def run(self, *extra: str) -> tuple[int, str]:
         return invoke(
-            "run", *self.base(), "--corpus", str(self.corpus),
-            *self.model(), *self.store(), *extra,
+            "run",
+            *self.base(),
+            "--corpus",
+            str(self.corpus),
+            *self.model(),
+            *self.store(),
+            *extra,
         )
 
     def backfill(self, *extra: str) -> tuple[int, str]:
         return invoke(
-            "backfill", *self.base(), "--corpus", str(self.corpus),
-            *self.model(), *self.store(), *extra,
+            "backfill",
+            *self.base(),
+            "--corpus",
+            str(self.corpus),
+            *self.model(),
+            *self.store(),
+            *extra,
         )
 
     def status(self) -> tuple[int, str]:
@@ -64,9 +74,7 @@ class Cmd:
         return invoke("verify", *self.base(), *self.store())
 
     def report(self, *extra: str) -> tuple[int, str]:
-        return invoke(
-            "report", *self.base(), "--corpus", str(self.corpus), *self.model(), *extra
-        )
+        return invoke("report", *self.base(), "--corpus", str(self.corpus), *self.model(), *extra)
 
 
 @pytest.fixture
@@ -192,8 +200,17 @@ def test_backfill_adds_a_field_without_re_embedding(cmd):
 def test_a_width_change_is_refused_with_the_flag_that_fixes_it(cmd, capsys):
     cmd.run()
     code = main(
-        ["run", *cmd.base(), "--corpus", str(cmd.corpus), "--embedder", "hash",
-         "--dim", "16", *cmd.store()]
+        [
+            "run",
+            *cmd.base(),
+            "--corpus",
+            str(cmd.corpus),
+            "--embedder",
+            "hash",
+            "--dim",
+            "16",
+            *cmd.store(),
+        ]
     )
     assert code == EXIT_REFUSED
     assert "--recreate" in capsys.readouterr().err

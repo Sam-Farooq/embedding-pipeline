@@ -202,9 +202,7 @@ def _run(args: argparse.Namespace, out, *, payload_only: bool) -> int:
     if payload_only:
         plan = dataclasses.replace(plan, embed=[], removed=[], removed_point_ids=[])
 
-    embedder = build_embedder(
-        args.embedder, model=args.model, revision=args.revision, dim=args.dim
-    )
+    embedder = build_embedder(args.embedder, model=args.model, revision=args.revision, dim=args.dim)
     check_vector_space(manifest, embedder, recreate=args.recreate)
 
     if getattr(args, "dry_run", False):

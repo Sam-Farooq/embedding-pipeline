@@ -18,8 +18,9 @@ DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
 DEFAULT_DIM = 384
 
 
-def fingerprint(kind: str, *, model: str = DEFAULT_MODEL, revision: str | None = None,
-                dim: int = DEFAULT_DIM) -> str:
+def fingerprint(
+    kind: str, *, model: str = DEFAULT_MODEL, revision: str | None = None, dim: int = DEFAULT_DIM
+) -> str:
     """The identity of a vector space, derived from flags and nothing else.
 
     plan has to know which model a run would use, and loading a model to read
@@ -88,8 +89,13 @@ class HashEmbedder:
 class SentenceTransformerEmbedder:
     """sentence-transformers, with the revision recorded where one is given."""
 
-    def __init__(self, model_name: str = DEFAULT_MODEL, revision: str | None = None,
-                 dim: int = DEFAULT_DIM, device: str | None = None) -> None:
+    def __init__(
+        self,
+        model_name: str = DEFAULT_MODEL,
+        revision: str | None = None,
+        dim: int = DEFAULT_DIM,
+        device: str | None = None,
+    ) -> None:
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:  # pragma: no cover - needs the hf extra
@@ -128,8 +134,9 @@ class SentenceTransformerEmbedder:
         return np.asarray(vectors, dtype=np.float32)
 
 
-def build_embedder(kind: str, *, model: str = DEFAULT_MODEL, revision: str | None = None,
-                   dim: int = DEFAULT_DIM) -> Embedder:
+def build_embedder(
+    kind: str, *, model: str = DEFAULT_MODEL, revision: str | None = None, dim: int = DEFAULT_DIM
+) -> Embedder:
     if kind == "hash":
         return HashEmbedder(dim=dim)
     if kind == "sentence-transformers":

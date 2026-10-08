@@ -185,8 +185,14 @@ def test_a_crash_mid_document_does_not_half_commit(tmp_path, manifest_path, coun
     first = HashEmbedder(dim=8)
     with pytest.raises(RuntimeError, match="boom"):
         run(
-            corpus, manifest_path, store, first, counter,
-            max_items=1, max_chars=200, overlap=0,
+            corpus,
+            manifest_path,
+            store,
+            first,
+            counter,
+            max_items=1,
+            max_chars=200,
+            overlap=0,
         )
 
     manifest = Manifest.load(manifest_path, "corpus")
@@ -217,9 +223,7 @@ def test_a_dimension_change_is_refused_before_anything_is_written(
     assert all(len(p.vector) == 8 for p in store.points.values())
 
 
-def test_recreate_rebuilds_the_collection_at_the_new_width(
-    corpus, manifest_path, store, counter
-):
+def test_recreate_rebuilds_the_collection_at_the_new_width(corpus, manifest_path, store, counter):
     run(corpus, manifest_path, store, HashEmbedder(dim=8), counter)
     run(corpus, manifest_path, store, HashEmbedder(dim=16), counter, recreate=True)
     manifest = Manifest.load(manifest_path, "corpus")
@@ -241,9 +245,7 @@ def test_a_model_change_rewrites_every_vector_in_place(corpus, manifest_path, st
     assert Manifest.load(manifest_path, "corpus").model == "other-model@v2/d8"
 
 
-def test_an_empty_document_is_recorded_and_not_replanned(
-    tmp_path, manifest_path, store, counter
-):
+def test_an_empty_document_is_recorded_and_not_replanned(tmp_path, manifest_path, store, counter):
     corpus = tmp_path / "corpus"
     write(corpus, "blank.md", "\n\n   \n")
     report = run(corpus, manifest_path, store, HashEmbedder(dim=8), counter)
@@ -265,9 +267,7 @@ def test_one_batch_can_carry_chunks_from_several_documents(
     assert embedder.calls == 1
 
 
-def test_commit_every_trades_manifest_writes_for_lost_work(
-    tmp_path, manifest_path, store, counter
-):
+def test_commit_every_trades_manifest_writes_for_lost_work(tmp_path, manifest_path, store, counter):
     corpus = tmp_path / "corpus"
     for i in range(6):
         write(corpus, f"d{i}.md", paragraph(f"d{i}", 120))
@@ -277,16 +277,19 @@ def test_commit_every_trades_manifest_writes_for_lost_work(
 
     manifest_path.unlink()
     lazy = run(
-        corpus, manifest_path, MemoryStore(), HashEmbedder(dim=8), counter,
-        max_items=1, commit_every=3,
+        corpus,
+        manifest_path,
+        MemoryStore(),
+        HashEmbedder(dim=8),
+        counter,
+        max_items=1,
+        commit_every=3,
     )
     assert lazy.batches == 6
     assert lazy.manifest_saves == 3
 
 
-def test_an_embedder_that_returns_the_wrong_width_is_caught(
-    corpus, manifest_path, store, counter
-):
+def test_an_embedder_that_returns_the_wrong_width_is_caught(corpus, manifest_path, store, counter):
     with pytest.raises(ConfigError, match="expected"):
         run(corpus, manifest_path, store, WrongShapeEmbedder(dim=8), counter)
 
