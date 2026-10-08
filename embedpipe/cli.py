@@ -258,6 +258,7 @@ def cmd_report(args: argparse.Namespace, out) -> int:
 
     manifest = _load(args)
     plan, _ = _plan_for(args, manifest)
+    columns = ["doc_id", "status", "chunks", "content_hash", "model", "embedded_at"]
     rows = []
     for doc_id in sorted(set(manifest.documents) | set(plan.actions)):
         record = manifest.documents.get(doc_id)
@@ -271,7 +272,7 @@ def cmd_report(args: argparse.Namespace, out) -> int:
                 "embedded_at": record.embedded_at if record else "",
             }
         )
-    frame = pd.DataFrame(rows).sort_values(["status", "doc_id"])
+    frame = pd.DataFrame(rows, columns=columns).sort_values(["status", "doc_id"])
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         frame.to_csv(args.out, index=False)

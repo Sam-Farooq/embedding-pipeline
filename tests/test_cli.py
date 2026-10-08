@@ -151,6 +151,15 @@ def test_report_writes_a_csv(cmd, tmp_path):
     assert len(body) == 3
 
 
+def test_report_on_an_empty_corpus_prints_a_header_not_a_traceback(cmd):
+    cmd.corpus.mkdir(parents=True, exist_ok=True)
+    for path in cmd.corpus.rglob("*.md"):
+        path.unlink()
+    code, text = cmd.report()
+    assert code == EXIT_OK
+    assert "doc_id" in text and "status" in text
+
+
 def test_a_malformed_set_flag_is_refused(cmd):
     assert cmd.plan("--set", "tenant")[0] == EXIT_REFUSED
 
