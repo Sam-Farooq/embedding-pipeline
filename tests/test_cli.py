@@ -243,3 +243,23 @@ def test_the_module_entry_point_runs():
     )
     assert done.returncode == 0
     assert "backfill" in done.stdout
+
+
+def test_backfill_refuses_when_the_store_does_not_hold_the_points(cmd, capsys):
+    assert cmd.run()[0] == EXIT_OK
+    indexed = cmd.points.read_text(encoding="utf-8")
+
+    # The collection is gone and the manifest does not know. On Qdrant this is a
+    # set_payload against ids that are not there: accepted, and nothing happens.
+    cmd.points.unlink()
+
+    code, _ = cmd.backfill("--set", "tenant=acme")
+    assert code == EXIT_REFUSED
+    message = capsys.readouterr().err
+    assert "backfill refused" in message
+    assert "a.md" in message and "nested/b.md" in message
+    assert not cmd.points.exists()
+
+    # It is not a one-way door: re-index and the same backfill goes through.
+    cmd.points.write_text(indexed, encoding="utf-8")
+    assert cmd.backfill("--set", "tenant=acme")[0] == EXIT_OK

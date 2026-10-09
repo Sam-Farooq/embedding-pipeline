@@ -263,8 +263,14 @@ has been embedded, so it has to be the pessimistic one.
 
 ## Known rough edges
 
-- `backfill` assumes the points it is updating exist. If they do not, Qdrant
-  accepts the call and nothing happens, and `verify` is how you find out.
+- `backfill` checks the store before it writes. Qdrant's `set_payload` against
+  an id that is not in the collection succeeds and changes nothing, so a
+  backfill aimed at the wrong `--collection` used to report a count and do
+  nothing. It now scrolls the collection's ids first, refuses with exit 2, and
+  names the documents. The plan cannot catch this by itself: the plan comes from
+  the manifest and the manifest is what claims the document is indexed, so only
+  the store can disagree. The cost is one scroll per backfill, which `verify`
+  already pays, and nothing when there is no payload work to do.
 - A file moved between directories is a delete plus an add, because the doc_id
   is the path relative to the corpus root. That is right where paths carry
   meaning and wrong where they do not.

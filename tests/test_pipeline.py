@@ -10,7 +10,7 @@ from embedpipe import ConfigError
 from embedpipe.embedder import HashEmbedder
 from embedpipe.ids import point_id
 from embedpipe.manifest import Manifest
-from embedpipe.pipeline import check_vector_space, execute
+from embedpipe.pipeline import absent_points, check_vector_space, execute
 from embedpipe.store import MemoryStore, Point
 
 from .conftest import paragraph, plan_for, write
@@ -309,3 +309,45 @@ def test_hash_vectors_are_deterministic_and_normalised():
     assert np.array_equal(one, two)
     assert not np.array_equal(one[0], one[1])
     assert np.allclose(np.linalg.norm(one, axis=1), 1.0, atol=1e-6)
+
+
+def test_absent_points_is_empty_when_the_store_holds_every_point(
+    corpus, manifest_path, store, counter
+):
+    run(corpus, manifest_path, store, HashEmbedder(dim=8), counter)
+    manifest = Manifest.load(manifest_path, "corpus")
+    plan = plan_for(corpus, manifest, extra={"tenant": "acme"})
+    assert plan.payload_only
+    assert absent_points(plan, store) == {}
+
+
+def test_absent_points_names_the_documents_a_wiped_store_lost(
+    corpus, manifest_path, store, counter
+):
+    run(corpus, manifest_path, store, HashEmbedder(dim=8), counter)
+    manifest = Manifest.load(manifest_path, "corpus")
+    plan = plan_for(corpus, manifest, extra={"tenant": "acme"})
+    expected = {
+        item.doc_id: [point_id(item.doc_id, i) for i in range(len(item.chunks))]
+        for item in plan.payload_only
+    }
+    # The manifest still claims every document is indexed, and it is the plan's
+    # only source. Nothing but the store can contradict it.
+    store.points.clear()
+    assert absent_points(plan, store) == expected
+    assert sorted(expected) == ["a.md", "nested/b.md"]
+
+
+def test_absent_points_does_not_scroll_when_there_is_no_payload_work(
+    corpus, manifest_path, store, counter
+):
+    run(corpus, manifest_path, store, HashEmbedder(dim=8), counter)
+    manifest = Manifest.load(manifest_path, "corpus")
+    plan = plan_for(corpus, manifest)
+    assert not plan.payload_only
+
+    class Exploding(MemoryStore):
+        def ids(self) -> set[str]:
+            raise AssertionError("ids() scrolls the whole collection; do not pay for nothing")
+
+    assert absent_points(plan, Exploding()) == {}

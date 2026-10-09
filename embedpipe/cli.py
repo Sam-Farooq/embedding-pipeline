@@ -23,7 +23,7 @@ from .corpus import scan
 from .embedder import DEFAULT_DIM, DEFAULT_MODEL, build_embedder, fingerprint
 from .manifest import Manifest
 from .payload import check_extra, payload_signature
-from .pipeline import check_vector_space, execute
+from .pipeline import absent_points, check_vector_space, execute
 from .plan import Action, Plan, build_plan
 from .store import DEFAULT_COLLECTION, DEFAULT_QDRANT_URL, build_store
 
@@ -215,6 +215,23 @@ def _run(args: argparse.Namespace, out, *, payload_only: bool) -> int:
         url=args.qdrant_url,
         jsonl_path=args.jsonl_path,
     )
+    if payload_only:
+        absent = absent_points(plan, store)
+        if absent:
+            points = sum(len(v) for v in absent.values())
+            names = sorted(absent)
+            shown = ", ".join(names[:3])
+            more = f", and {len(names) - 3} more" if len(names) > 3 else ""
+            print(
+                f"backfill refused: {points} points across {len(absent)} documents are not in "
+                f"collection {args.collection!r} ({shown}{more}). The manifest says those "
+                "documents are indexed and the store disagrees, so every payload write would "
+                "succeed and change nothing. Check --collection and --jsonl-path, or use run "
+                "to embed them.",
+                file=sys.stderr,
+            )
+            return EXIT_REFUSED
+
     report = execute(
         plan,
         store=store,
