@@ -340,3 +340,20 @@ def test_converting_the_file_clears_the_count_and_re_embeds_it(cmd):
     }
     assert "\ufffd" not in stored["refunds.md"]
     assert "customer\u2019s money" in stored["refunds.md"]
+
+
+def test_a_binary_file_behind_the_glob_is_refused_rather_than_chunked(cmd, capsys):
+    """There is no extractor for PDF or HTML, so a PDF is bytes that mostly do
+    not decode. Under --strict the replacement count is what stops it, which is
+    not encoding detection but does keep the nonsense out of the collection.
+    """
+    write_bytes(cmd.corpus, "manual.md", b"%PDF-1.4\n" + bytes(range(256)) * 4 + b"\n%%EOF\n")
+    code, _ = cmd.run("--strict")
+    assert code == EXIT_REFUSED
+    message = capsys.readouterr().err
+    assert "manual.md (512)" in message
+    assert not cmd.points.exists()
+
+    code, text = cmd.run()
+    assert code == EXIT_OK
+    assert "replacement characters 512" in text

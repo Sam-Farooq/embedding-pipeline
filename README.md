@@ -24,16 +24,18 @@ embedpipe run --corpus /tmp/corpus --embedder hash --store jsonl
 ```
 
 ```
-documents embedded            3
-chunks embedded               4
-batches                       1
-chunks over the token budget  0
-documents payload-only        0
-payload writes                0
-documents removed             0
-points deleted                0
-documents unchanged           0
-manifest saves                2
+documents embedded                   3
+chunks embedded                      4
+batches                              1
+chunks over the token budget         0
+documents payload-only               0
+payload writes                       0
+documents removed                    0
+points deleted                       0
+documents unchanged                  0
+manifest saves                       2
+replacement characters               0
+documents decoded with replacements  0
 ```
 
 Now change one document and run it again:
@@ -44,11 +46,11 @@ embedpipe run --corpus /tmp/corpus --embedder hash --store jsonl
 ```
 
 ```
-documents embedded            1
-chunks embedded               2
-batches                       1
+documents embedded                   1
+chunks embedded                      2
+batches                              1
 ...
-documents unchanged           2
+documents unchanged                  2
 ```
 
 Two of three documents were skipped on their content hash. The third was
@@ -103,6 +105,74 @@ Three of those fields each answer a question that content hashing alone cannot:
 `--fail-on-drift` it exits 3 when work is pending, which is the form a cron job
 or a CI check wants.
 
+## When the input is not UTF-8
+
+`scan` reads bytes and decodes them as utf-8 with `errors="replace"`, so one
+cp1252 smart quote in a file exported from Word lands in the chunk text as
+U+FFFD and the vector is computed from that. The decode counts what it replaced
+and every command that reads the corpus says so:
+
+```bash
+printf 'A refund is the customer\x92s money.\n' > /tmp/corpus/legacy.md
+embedpipe plan --corpus /tmp/corpus --embedder hash
+```
+
+```
+embedpipe: 1 replacement character from a lossy utf-8 decode, in 1 document of 4: legacy.md (1). Re-run with --strict to refuse.
+model                                hash-not-a-model@v1/d384
+payload signature                    d45ebfc61be2a061
+documents to embed                   1
+chunks to embed                      1
+documents payload-only               0
+documents unchanged                  3
+documents removed                    0
+points to delete                     0
+replacement characters               1
+documents decoded with replacements  1
+  new            legacy.md
+```
+
+`--strict` turns that line into a refusal with exit 2, before the manifest or
+the store is touched. It is on `plan`, `run`, `backfill` and `report`, so a
+scheduled `plan --strict` catches a bad export the morning it lands rather than
+after it is embedded.
+
+```bash
+embedpipe run --corpus /tmp/corpus --embedder hash --store jsonl --strict
+```
+
+```
+embedpipe: 1 replacement character from a lossy utf-8 decode, in 1 document of 4: legacy.md (1). Those bytes are not utf-8 and the text that would be embedded carries U+FFFD in their place. Convert the files, or drop --strict to embed them as they stand.
+```
+
+Three things the number is not:
+
+- **It is not a count of lost bytes.** Python substitutes one U+FFFD per
+  maximal invalid subpart, so a truncated four-byte sequence counts once. The
+  number is of broken runs.
+- **It is not a count of U+FFFD in the text.** The replacement character is one
+  a valid file may contain, and it encodes to `ef bf bd`, so the ones already in
+  the bytes are subtracted. Otherwise a file that mentions U+FFFD on purpose
+  would be reported as broken for ever rather than never.
+- **It is not restricted to what this run embedded.** Every scanned document is
+  counted, including the unchanged ones, because their lossy text is already in
+  the store and a summary that waited for somebody to edit the file would be the
+  same silence in a smaller place.
+
+The content hash still covers the bytes rather than the decoded text, and that
+is what makes the repair land. Re-encoding `legacy.md` as utf-8 changes its
+bytes, the document reads as changed, and the next run recomputes the vector
+from text with nothing missing from it. A hash over the decoded text would do
+the opposite: two files that differ only in an invalid byte sequence decode to
+the same string, so the conversion would read as unchanged and the lossy vector
+would stay where it is.
+
+`--strict` is all or nothing. There is no per-file allowance, so one legacy
+export blocks the corpus until it is converted or the flag comes off, and
+nothing here works out which encoding the file actually was. Without the flag
+the stderr line is unconditional, so a corpus that is knowingly lossy prints it
+on every scheduled run.
+
 ## Adding a field to a million vectors without re-embedding them
 
 Chunking is string work and the forward pass is not, so a payload change
@@ -114,10 +184,10 @@ embedpipe backfill --corpus /tmp/corpus --embedder hash --store jsonl --set sour
 ```
 
 ```
-documents embedded            0
-chunks embedded               0
-documents payload-only        3
-payload writes                4
+documents embedded                   0
+chunks embedded                      0
+documents payload-only               3
+payload writes                       4
 ```
 
 Zero chunks embedded, four payloads written. `backfill` refuses outright if any
@@ -210,7 +280,7 @@ claiming they were current.
 | Code | Meaning |
 |---|---|
 | 0 | nothing went wrong |
-| 2 | refused: bad flags, an unreadable manifest, a width change without `--recreate` |
+| 2 | refused: bad flags, an unreadable manifest, a width change without `--recreate`, a lossy decode under `--strict` |
 | 3 | `plan --fail-on-drift` found work to do |
 | 4 | `verify` found the manifest and the store disagreeing |
 
@@ -221,7 +291,7 @@ collection does not cost more than building it.
 ## Tests
 
 ```bash
-pytest -q        # 91 tests, no network, no Qdrant, no model
+pytest -q        # 114 tests, no network, no Qdrant, no model
 ```
 
 The embedder and the store both sit behind protocols with working fakes, so
@@ -274,6 +344,9 @@ has been embedded, so it has to be the pessimistic one.
 - A file moved between directories is a delete plus an add, because the doc_id
   is the path relative to the corpus root. That is right where paths carry
   meaning and wrong where they do not.
-- `--glob` defaults to `**/*.md`. There is no extractor for PDF or HTML, and
-  anything that is not UTF-8 is decoded with replacement characters and hashed
-  on its original bytes.
+- `--glob` defaults to `**/*.md` and there is no extractor for PDF or HTML. A
+  PDF renamed `.md` is read as bytes, and what stops it is the replacement
+  count rather than anything that knows what a PDF is:
+  `tests/test_cli.py::test_a_binary_file_behind_the_glob_is_refused_rather_than_chunked`
+  feeds `scan` 1,040 bytes of binary, which decode to 512 replacement
+  characters, and `--strict` refuses them.
