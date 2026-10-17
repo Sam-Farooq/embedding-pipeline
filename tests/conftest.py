@@ -22,6 +22,14 @@ def write(root: Path, rel: str, text: str) -> Path:
     return path
 
 
+def write_bytes(root: Path, rel: str, data: bytes) -> Path:
+    """Write a file that is not necessarily valid utf-8."""
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    return path
+
+
 def paragraph(marker: str, length: int) -> str:
     """A paragraph of exactly `length` characters, identifiable by marker."""
     body = f"{marker} " + "word " * length
