@@ -11,7 +11,7 @@ import pytest
 
 from embedpipe.cli import EXIT_DRIFT, EXIT_OK, EXIT_REFUSED, EXIT_VERIFY, main
 
-from .conftest import write
+from .conftest import write, write_bytes
 
 
 def invoke(*args: str) -> tuple[int, str]:
@@ -263,3 +263,80 @@ def test_backfill_refuses_when_the_store_does_not_hold_the_points(cmd, capsys):
     # It is not a one-way door: re-index and the same backfill goes through.
     cmd.points.write_text(indexed, encoding="utf-8")
     assert cmd.backfill("--set", "tenant=acme")[0] == EXIT_OK
+
+
+# cp1252 0x92 is a right single quotation mark, which utf-8 has no single byte
+# for. One smart quote in a handbook exported from Word is enough.
+CP1252_APOSTROPHE = "A refund is the customer\u2019s money.\n".encode("cp1252")
+
+
+def test_a_lossy_decode_is_counted_in_the_run_summary(cmd):
+    write_bytes(cmd.corpus, "refunds.md", CP1252_APOSTROPHE)
+    code, text = cmd.run()
+    assert code == EXIT_OK
+    assert "replacement characters 1" in text
+    assert "documents decoded with replacements 1" in text
+
+    stored = {
+        json.loads(line)["payload"]["doc_id"]: json.loads(line)["payload"]["text"]
+        for line in cmd.points.read_text(encoding="utf-8").splitlines()
+    }
+    assert "\ufffd" in stored["refunds.md"]
+
+
+def test_a_lossy_decode_says_which_file_on_stderr(cmd, capsys):
+    write_bytes(cmd.corpus, "refunds.md", CP1252_APOSTROPHE)
+    assert cmd.run()[0] == EXIT_OK
+    message = capsys.readouterr().err
+    assert "1 replacement character" in message
+    assert "refunds.md (1)" in message
+    assert "--strict" in message
+
+
+def test_strict_refuses_rather_than_embedding_a_replacement_character(cmd, capsys):
+    write_bytes(cmd.corpus, "refunds.md", CP1252_APOSTROPHE)
+    code, _ = cmd.run("--strict")
+    assert code == EXIT_REFUSED
+    assert "refunds.md" in capsys.readouterr().err
+    assert not cmd.points.exists()
+    assert not cmd.manifest.exists()
+
+
+def test_strict_is_quiet_on_a_corpus_that_decodes_cleanly(cmd):
+    assert cmd.run("--strict")[0] == EXIT_OK
+    assert cmd.plan("--strict")[0] == EXIT_OK
+    assert cmd.backfill("--strict", "--set", "tenant=acme")[0] == EXIT_OK
+
+
+def test_plan_reports_the_count_before_anything_is_embedded(cmd):
+    write_bytes(cmd.corpus, "refunds.md", CP1252_APOSTROPHE)
+    code, text = cmd.plan()
+    assert code == EXIT_OK
+    assert "replacement characters 1" in text
+    assert cmd.plan("--strict")[0] == EXIT_REFUSED
+
+
+def test_converting_the_file_clears_the_count_and_re_embeds_it(cmd):
+    """The refusal is not a one-way door.
+
+    Re-encoding the file changes its bytes, the content hash covers the bytes,
+    so the next run treats it as changed and the vector is recomputed from text
+    with no U+FFFD in it. Without the re-embed, --strict would pass on a
+    collection still holding the lossy vector.
+    """
+    write_bytes(cmd.corpus, "refunds.md", CP1252_APOSTROPHE)
+    assert cmd.run()[0] == EXIT_OK
+
+    write(cmd.corpus, "refunds.md", CP1252_APOSTROPHE.decode("cp1252"))
+    code, text = cmd.run("--strict")
+    assert code == EXIT_OK
+    assert "documents embedded 1" in text
+    assert "documents unchanged 2" in text
+    assert "replacement characters 0" in text
+
+    stored = {
+        json.loads(line)["payload"]["doc_id"]: json.loads(line)["payload"]["text"]
+        for line in cmd.points.read_text(encoding="utf-8").splitlines()
+    }
+    assert "\ufffd" not in stored["refunds.md"]
+    assert "customer\u2019s money" in stored["refunds.md"]

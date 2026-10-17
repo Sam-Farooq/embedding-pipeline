@@ -6,7 +6,7 @@ from embedpipe.manifest import Manifest
 from embedpipe.payload import payload_signature
 from embedpipe.plan import Action, build_plan
 
-from .conftest import HASH_MODEL, paragraph, plan_for, write
+from .conftest import HASH_MODEL, paragraph, plan_for, write, write_bytes
 
 OTHER_MODEL = "BAAI/bge-small-en-v1.5@unpinned/d384"
 
@@ -143,3 +143,18 @@ def test_the_glob_decides_what_counts_as_the_corpus(corpus, tmp_path):
         payload_signature=payload_signature({}),
     )
     assert list(txt_plan.actions) == ["notes.txt"]
+
+
+def test_the_replacement_count_covers_a_document_that_needs_no_work(corpus):
+    """A clean plan is still allowed to carry bad news.
+
+    The lossy text is in the store from an earlier run, and a plan that reported
+    nothing because nothing changed would hide it until the file was next
+    edited.
+    """
+    write_bytes(corpus, "legacy.md", b"a smart quote \x92 here")
+    plan = plan_for(corpus, seeded(corpus))
+    assert plan.is_clean()
+    assert plan.replacements == {"legacy.md": 1}
+    assert plan.replacement_chars == 1
+    assert plan.counts()["embed_docs"] == 0

@@ -3,7 +3,8 @@
 Exit codes, because this runs from cron:
 
   0  nothing went wrong
-  2  refused: bad flags, a manifest that cannot be trusted, a dimension change
+  2  refused: bad flags, a manifest that cannot be trusted, a dimension change,
+     or --strict over a corpus that did not decode as utf-8
   3  plan --fail-on-drift found work to do
   4  verify found the manifest and the store disagreeing
 """
@@ -19,7 +20,7 @@ from pathlib import Path
 from . import EmbedPipeError
 from .batching import DEFAULT_MAX_ITEMS, DEFAULT_MAX_TOKENS, build_counter
 from .chunking import DEFAULT_MAX_CHARS, DEFAULT_OVERLAP
-from .corpus import scan
+from .corpus import check_decoded, describe_replacements, scan
 from .embedder import DEFAULT_DIM, DEFAULT_MODEL, build_embedder, fingerprint
 from .manifest import Manifest
 from .payload import check_extra, payload_signature
@@ -53,6 +54,12 @@ def _add_corpus_flags(parser: argparse.ArgumentParser) -> None:
         default=[],
         metavar="KEY=VALUE",
         help="static payload field, repeatable. Changing these triggers a payload backfill.",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="refuse a corpus that did not decode as utf-8 instead of embedding "
+        "replacement characters",
     )
 
 
@@ -152,8 +159,15 @@ def _load(args: argparse.Namespace) -> Manifest:
 def _plan_for(args: argparse.Namespace, manifest: Manifest) -> tuple[Plan, dict[str, str]]:
     extra = _parse_extra(args.extra)
     model = fingerprint(args.embedder, model=args.model, revision=args.revision, dim=args.dim)
+    sources = scan(args.corpus, args.glob)
+    # Every command that reads the corpus goes through here, so plan, run,
+    # backfill and report all say the same thing about a lossy decode.
+    if args.strict:
+        check_decoded(sources)
+    elif described := describe_replacements(sources):
+        print(f"embedpipe: {described}. Re-run with --strict to refuse.", file=sys.stderr)
     plan = build_plan(
-        scan(args.corpus, args.glob),
+        sources,
         manifest,
         model=model,
         payload_signature=payload_signature(extra),
@@ -174,6 +188,8 @@ def _plan_rows(plan: Plan) -> list[tuple[str, object]]:
         ("documents unchanged", counts["unchanged_docs"]),
         ("documents removed", counts["removed_docs"]),
         ("points to delete", counts["delete_points"]),
+        ("replacement characters", plan.replacement_chars),
+        ("documents decoded with replacements", len(plan.replacements)),
     ]
 
 
