@@ -52,10 +52,18 @@ class Plan:
     removed: list[str] = field(default_factory=list)
     removed_point_ids: list[str] = field(default_factory=list)
     actions: dict[str, Action] = field(default_factory=dict)
+    # doc_id -> replacement characters its decode introduced, absent when none.
+    # Over every scanned document, including the unchanged ones, because their
+    # text is in the store already and the operator still wants the number.
+    replacements: dict[str, int] = field(default_factory=dict)
 
     @property
     def pending_chunks(self) -> int:
         return sum(len(item.chunks) for item in self.embed)
+
+    @property
+    def replacement_chars(self) -> int:
+        return sum(self.replacements.values())
 
     @property
     def orphan_point_ids(self) -> list[str]:
@@ -89,6 +97,8 @@ def build_plan(
 
     for doc in sources:
         seen.add(doc.doc_id)
+        if doc.replacements:
+            plan.replacements[doc.doc_id] = doc.replacements
         record = manifest.documents.get(doc.doc_id)
         if record is None:
             action = Action.NEW

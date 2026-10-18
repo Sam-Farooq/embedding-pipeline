@@ -45,6 +45,8 @@ class RunReport:
     batches: int = 0
     oversize_chunks: int = 0
     manifest_saves: int = 0
+    replacement_chars: int = 0
+    documents_with_replacements: int = 0
 
     def rows(self) -> list[tuple[str, int]]:
         return [
@@ -58,6 +60,8 @@ class RunReport:
             ("points deleted", self.points_deleted),
             ("documents unchanged", self.documents_unchanged),
             ("manifest saves", self.manifest_saves),
+            ("replacement characters", self.replacement_chars),
+            ("documents decoded with replacements", self.documents_with_replacements),
         ]
 
 
@@ -155,7 +159,14 @@ def execute(
     if commit_every < 1:
         raise ConfigError("commit_every must be at least 1")
 
-    report = RunReport(documents_unchanged=len(plan.unchanged))
+    report = RunReport(
+        documents_unchanged=len(plan.unchanged),
+        # Carried from the plan rather than recounted here. The decode happened
+        # in scan() and a second count over the chunks would double anything
+        # that lands in a chunk overlap.
+        replacement_chars=plan.replacement_chars,
+        documents_with_replacements=len(plan.replacements),
+    )
     stamp = ingested_at or utc_now()
     watch = _OversizeWatch(counter, max_tokens)
 
